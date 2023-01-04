@@ -1,4 +1,4 @@
-setwd('/work/MiaJacobsen#3200/exam')
+#setwd('/work/MiaJacobsen#3200/exam')
 
 install.packages("pacman")
 pacman::p_load(R2jags, parallel, polspline, tidyverse, glue, patchwork, bayestestR)

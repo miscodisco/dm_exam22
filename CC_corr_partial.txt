@@ -1,0 +1,167 @@
+model {
+
+  #-------------------------------------------------------------------
+  #-------------------  National-level/regression priors -------------
+  #-------------------------------------------------------------------
+
+  # Implementation of JZS priors
+  
+  # calculation of the inverse matrix of V
+  inverse_V <- inverse(V)
+
+  #----------------- alpha priors -------------------------------------
+  a.gamma_alpha <- 1/2
+  b.gamma_alpha <- ngroups/2
+  
+  phi_alpha ~ dgamma(0.01,0.01)
+
+  invg_alpha ~ dgamma(a.gamma_alpha,b.gamma_alpha)
+  g_alpha <- 1/invg_alpha
+  
+  # calculation of the elements of prior precision matrix
+  for (i in 1:4) { 
+    for (j in 1:4) {
+      prior_T_alpha[i,j] <- inverse_V[i,j] * phi_alpha/g_alpha
+    }
+  }
+  
+  # multivariate prior for the beta vector
+  betaX_alpha[1:4] ~ dmnorm(mu_betaX_alpha,prior_T_alpha)
+  for (i in 1:4) { mu_betaX_alpha[i] <- 0 }
+
+  beta0_alpha ~ dnorm(0,1)
+
+  #----------------- rho priors -------------------------------------
+  a.gamma_rho <- 1/2
+  b.gamma_rho <- ngroups/2
+  
+  phi_rho ~ dgamma(0.01,0.01)
+
+  invg_rho ~ dgamma(a.gamma_rho,b.gamma_rho)
+  g_rho <- 1/invg_rho
+  
+  # calculation of the elements of prior precision matrix
+  for (i in 1:4) { 
+    for (j in 1:4) {
+      prior_T_rho[i,j] <- inverse_V[i,j] * phi_rho/g_rho
+    }
+  }
+  
+  # multivariate prior for the beta vector
+  betaX_rho[1:4] ~ dmnorm(mu_betaX_rho,prior_T_rho)
+  for (i in 1:4) { mu_betaX_rho[i] <- 0 }
+
+  beta0_rho ~ dnorm(0,1)
+
+  #----------------- omega priors -------------------------------------
+  a.gamma_omega <- 1/2
+  b.gamma_omega <- ngroups/2
+
+  phi_omega ~ dgamma(0.01,0.01)
+
+  invg_omega ~ dgamma(a.gamma_omega,b.gamma_omega)
+  g_omega <- 1/invg_omega
+  
+  #calculation of the elements of prior precision matrix
+  for (i in 1:4) { 
+    for (j in 1:4) {
+      prior_T_omega[i,j] <- inverse_V[i,j] * phi_omega/g_omega
+    }
+  }
+  
+  # multivariate prior for the beta vector
+  betaX_omega[1:4] ~ dmnorm(mu_betaX_omega,prior_T_omega)
+  for (i in 1:4) { mu_betaX_omega[i] <- 0 }
+
+  beta0_omega ~ dnorm(0,1)
+
+  #------ National level regressions ----------------------------
+  for (n in 1:nnations) {
+  
+        mu_alpha_log[n] <- beta0_alpha + 
+          betaX_alpha[1]*X[n,1] + 
+          betaX_alpha[2]*X[n,2] +
+          betaX_alpha[3]*X[n,3] +
+          betaX_alpha[4]*X[n,4] 
+
+        mu_rho_probit[n] <- beta0_rho + 
+          betaX_rho[1]*X[n,1] + 
+          betaX_rho[2]*X[n,2] +
+          betaX_rho[3]*X[n,3] +
+          betaX_rho[4]*X[n,4] 
+
+        mu_omega_probit[n] <- beta0_omega + 
+          betaX_omega[1]*X[n,1] + 
+          betaX_omega[2]*X[n,2] + 
+          betaX_omega[3]*X[n,3] +
+          betaX_omega[4]*X[n,4]
+
+    #------ variance priors ------------------------------------------
+    # standard deviation for initial belief (inverse gamma priors)
+    tau_alpha[n] ~ dgamma(.01,.01)
+    sigma_alpha[n] <- 1/sqrt(tau_alpha[n]) 
+
+    # concentration (precision) of rate parameters (for beta priors)
+    sigma_rho[n] ~ dunif(1,100)
+    sigma_omega[n] ~ dunif(1,100)
+
+    # reparameterising gamma prior for beliefs about others on first trial 
+    log(mu_alpha[n]) <- mu_alpha_log[n] # standardisation of initial belief mode - log link
+    rate_alpha[n] <- ( mu_alpha[n] + sqrt( mu_alpha[n]^2 + 4*sigma_alpha[n]^2 ))/
+                    (2*sigma_alpha[n]^2) 
+    shape_alpha[n] <- 1 + mu_alpha[n] * rate_alpha[n]
+
+    #reparamaterising beta prior for slope of preferencesin CC model
+    probit(mu_rho[n]) <- mu_rho_probit[n] # standardisation of rate estimate mean - probit link
+    shape1_rho[n] <- (mu_rho[n]) * sigma_rho[n]
+    shape2_rho[n] <- (1 - mu_rho[n]) * sigma_rho[n]  
+
+    #reparamaterising beta prior for belief updating in CC model
+    probit(mu_omega[n]) <- mu_omega_probit[n] # standardisation of rate estimate mean - probit link
+    shape1_omega[n] <- (mu_omega[n]) * sigma_omega[n]
+    shape2_omega[n] <- (1 - mu_omega[n]) * sigma_omega[n]  
+  }
+
+  #-------------------------------------------------------------------
+  #-------------------  Individual level model -----------------------
+  #-------------------------------------------------------------------
+
+  for (g in 1:ngroups) {
+  
+    for (s in 1:groupSize) {
+    
+      #--------------- Model priors ------------------------------------------------------
+
+      alpha[s,g] ~ dgamma(shape_alpha[Nation[g]],rate_alpha[Nation[g]])T(0.001,)
+      rho[s,g] ~ dbeta(shape1_rho[Nation[g]],shape2_rho[Nation[g]])T(0.001,0.999) 
+      omega[s,g] ~ dbeta(shape1_omega[Nation[g]],shape2_omega[Nation[g]])T(0.001,0.999) 
+
+      #beliefs about others on first trial - gamma-poisson distribution
+      Gb[s,1,g] ~ dpois(alpha[s,g])
+
+      # modelled preference and first contribution - see below
+      p[s,1,g] <- (rho[s,g]*Gb[s,1,g])
+      c[s,1,g] ~ dpois(p[s,1,g])
+        
+    }
+
+    #--------------- Implementation of CC model --------------------------------
+
+    for (t in 2:ntrials) {
+        
+      for (s in 1:groupSize) {
+        
+        #- Belief about group contribution
+        Gb[s,t,g] <- ((1-omega[s,g])*(Gb[s,t-1,g]))+(omega[s,g]*(Ga[s,t-1,g]))
+
+        #- Contribution preference, given belief and matching preference rho  
+        p[s,t,g] <- rho[s,g]*Gb[s,t,g]
+
+        #- Contribution as discrete sample from preferences
+        c[s,t,g] ~ dpois(p[s,t,g])
+      }
+        
+    }
+  }
+  
+}
