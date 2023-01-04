@@ -1,0 +1,38 @@
+model {
+	# Implementation of JZS priors for partial correlation 
+	a.gamma <- 1/2
+	b.gamma <- ngroups/2
+	
+	# calculation of the inverse matrix of V
+	inverse_V <- inverse(V)
+
+	#----------------- priors ------------------------------------- 
+	phi ~ dgamma(.01,.01)
+	invg ~ dgamma(a.gamma,b.gamma) 
+	g <- 1/invg
+
+	# calculation of the elements of prior precision matrix 
+	for (i in 1:4) {
+		for (j in 1:4) {
+			prior_T[i,j] <- inverse_V[i,j] * phi/g
+			} 
+	}
+	
+	# multivariate prior for the beta vector 
+	betaX[1:4] ~ dmnorm(mu_betaX,prior_T) 
+	for (i in 1:4) { 
+		mu_betaX[i] <- 0 
+	}
+	beta0 ~ dnorm(0,1)
+
+	#------ National level regressions ---------------------------- 
+	for (n in 1:nnations) {
+		nat_mu[n] <- beta0 + (betaX[1]*(X[n,1])) + (betaX[2]*X[n,2]) +
+		(betaX[3]*X[n,3]) + (betaX[4]*X[n,4])
+	}
+
+	sigma ~ dgamma(.01,.01)
+	#---- Group level model ----------------------- 
+	for (g in 1:ngroups) {
+		Y[g] ~ dnorm(nat_mu[Nation[g]],sigma) }
+	}
