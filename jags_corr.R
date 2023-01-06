@@ -79,25 +79,25 @@ params <- c("beta0","betaX")
 X = array((V23-mean(V23))/sd(V23))
 invSigma <- solve(t(X)%*%X)
 win.samples.23 <- jags.parallel(data, inits=NULL, params,
-                                model.file ="/work/MiaJacobsen#3200/livecoding/win_corr.txt",
+                                model.file ="win_corr.txt",
                                 n.chains=3, n.iter=15000, n.burnin=5000, n.thin=1, n.cluster=4)
 
 X = array((V126-mean(V126))/sd(V126))
 invSigma <- solve(t(X)%*%X)
 win.samples.126 <- jags.parallel(data, inits=NULL, params,
-                                 model.file ="/work/MiaJacobsen#3200/livecoding/win_corr.txt",
+                                 model.file ="win_corr.txt",
                                  n.chains=3, n.iter=15000, n.burnin=5000, n.thin=1, n.cluster=4)
 
 X = array((V128-mean(V23))/sd(V128))
 invSigma <- solve(t(X)%*%X)
 win.samples.128 <- jags.parallel(data, inits=NULL, params,
-                                 model.file ="/work/MiaJacobsen#3200/livecoding/win_corr.txt",
+                                 model.file ="win_corr.txt",
                                  n.chains=3, n.iter=15000, n.burnin=5000, n.thin=1, n.cluster=4)
 
 X = array((V138-mean(V23))/sd(V138))
 invSigma <- solve(t(X)%*%X)
 win.samples.138 <- jags.parallel(data, inits=NULL, params,
-                                 model.file ="/work/MiaJacobsen#3200/livecoding/win_corr.txt",
+                                 model.file ="win_corr.txt",
                                  n.chains=3, n.iter=15000, n.burnin=5000, n.thin=1, n.cluster=4)
 
 ################# JAGS - PARTIAL CORRELATION FOR ALL TRUST VARIABLES ################# 
